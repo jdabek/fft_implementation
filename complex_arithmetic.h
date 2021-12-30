@@ -1,3 +1,6 @@
+#ifndef COMPLEX_ARITHMETIC_H
+#define COMPLEX_ARITHMETIC_H
+
 #include <cmath>
 #include <vector>
 #include <sstream>
@@ -89,6 +92,11 @@ public:
         _vec.resize(nsamp);
     }
 
+    ComplexVector()
+    {
+        _vec.resize(0);
+    }
+
     unsigned size() const { return _vec.size(); };
 
     ComplexNumber operator[](unsigned i) const
@@ -144,7 +152,7 @@ public:
 
     bool getElement(
             const unsigned i,
-            ComplexNumber& z)
+            ComplexNumber& z) const
     {
         if (i >= this->size())
             return false;
@@ -360,3 +368,5 @@ ComplexVector operator/(const ComplexNumber& z, const ComplexVector& vec)
         }
         return out;    
 }
+
+#endif

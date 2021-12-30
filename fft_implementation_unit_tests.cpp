@@ -1,5 +1,6 @@
 #include <iostream>
 #include "complex_arithmetic.h"
+#include "fft_arithmetic.h"
 
 #define ENSURE(x) { if (!(x)) { std::cout << __FUNCTION__ << " FAILED: line " << __LINE__ << std::endl; return; } }
 #define SUCCESS { std::cout << __FUNCTION__ << " PASSED" << std::endl; }
@@ -7,7 +8,7 @@
 class FftImplementationUnitTests
 {
 public:
-    static void testComplexArithmetics()
+    static void testComplexArithmetic()
     {
         ComplexNumber z(3.0, 4.0);
         ENSURE(z.re() == 3 && z.im() == 4);
@@ -332,12 +333,89 @@ public:
 
         SUCCESS;
     }
+
+    static void testFft2PowImplementation()
+    {
+        ComplexVector data(16);
+        int f = 4;
+        for (unsigned i = 0; i < data.size(); i++)
+        {
+            data.setElement(
+                    i,
+                    std::cos(f * 2.0 * M_PI * i / data.size()),
+                    std::sin(f * 2.0 * M_PI * i / data.size()));
+        }
+
+        ComputeFft cfft(data);
+
+        ComplexVector fft = cfft.getFft();
+        ComplexVector ifft = cfft.getIfft();
+
+        for (unsigned i = 0; i < data.size(); i++)
+        {
+            ComplexNumber z;
+            fft.getElement(i, z);
+            if (i == f)
+            {
+                ENSURE((z - ComplexNumber(16.0, 0.0)).abs() < 1e-10);
+            }
+            else
+            {
+                ENSURE(z.abs() < 1e-10);
+            }
+            ifft.getElement(i, z);
+            if (i == 16-f)
+            {
+                ENSURE((z - ComplexNumber(16.0, 0.0)).abs() < 1e-10);
+            }
+            else
+            {
+                ENSURE(z.abs() < 1e-10);
+            }
+        }
+
+        f = 3;
+        data = data * ComplexNumber(0.0, 0.0);
+        data.setElement(f, 0.0, 1.0);
+
+        cfft = ComputeFft(data);
+
+        fft = cfft.getFft();
+        ifft = cfft.getIfft();
+
+        for (unsigned i = 0; i < data.size(); i++)
+        {
+            ComplexNumber z;
+            fft.getElement(i, z);
+            ENSURE((z - ComplexNumber(
+                    std::sin(f * 2.0 * M_PI * i / data.size()),
+                    std::cos(f * 2.0 * M_PI * i / data.size()))).abs() < 1e-10);
+            ifft.getElement(i, z);
+            ENSURE((z - ComplexNumber(
+                    -std::sin(f * 2.0 * M_PI * i / data.size()),
+                    std::cos(f * 2.0 * M_PI * i / data.size()))).abs() < 1e-10);
+        }
+
+        data = ComplexVector(3);
+        data.setElement(0, 1.0, 0.0);
+        data.setElement(1, 2.0, 1.0);
+        data.setElement(2, 3.0, 2.0);
+        
+        cfft = ComputeFft(data);
+
+        ENSURE(cfft.getFft().size() == 0);
+        ENSURE(cfft.getIfft().size() == 0);
+
+        SUCCESS;
+    }
 };
 
 int main(void)
 {
-    FftImplementationUnitTests::testComplexArithmetics();
+    FftImplementationUnitTests::testComplexArithmetic();
     FftImplementationUnitTests::testComplexVector();
+
+    FftImplementationUnitTests::testFft2PowImplementation();
 
     return 0;
 }
