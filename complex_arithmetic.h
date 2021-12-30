@@ -82,7 +82,8 @@ class ComplexVector
 {
 public:
     friend class FftImplementationUnitTests;
-    
+    friend ComplexVector operator/(const ComplexNumber& z, const ComplexVector& vec);
+
     ComplexVector(const unsigned nsamp)
     {
         _vec.resize(nsamp);
@@ -90,7 +91,6 @@ public:
 
     unsigned size() const { return _vec.size(); };
 
-private:
     ComplexNumber operator[](unsigned i) const
     {
         if (i >= this->size())
@@ -104,6 +104,7 @@ private:
         return _vec[i];
     }
 
+private:
     ComplexNumber& operator[](unsigned i)
     {
         if (i >= this->size())
@@ -270,8 +271,6 @@ public:
         for (unsigned i = 0; i < this->size(); i++)
         {
             out[i] = _vec[i] / vec[i];
-            if (std::isnan(out[i].re()))
-                return ComplexVector(0);
         }
         return out;
     }
@@ -308,9 +307,6 @@ public:
 
     ComplexVector operator/(const ComplexNumber& z) const
     {
-        if (z.sqr() == 0)
-            return ComplexVector(0);
-
         ComplexVector out(this->size());
         for (unsigned i = 0; i < this->size(); i++)
         {
@@ -355,3 +351,12 @@ ComplexVector operator*(const ComplexNumber& z, const ComplexVector& vec)
     return vec * z;
 }
 
+ComplexVector operator/(const ComplexNumber& z, const ComplexVector& vec)
+{
+        ComplexVector out(vec.size());
+        for (unsigned i = 0; i < vec.size(); i++)
+        {
+            out[i] = z / vec[i];
+        }
+        return out;    
+}
