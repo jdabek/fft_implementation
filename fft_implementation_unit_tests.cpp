@@ -1,5 +1,5 @@
 #include <iostream>
-#include "fft_implementation.h"
+#include "complex_arithmetic.h"
 
 #define ENSURE(x) { if (!(x)) { std::cout << __FUNCTION__ << " failed on line " << __LINE__ << std::endl; return; } }
 #define SUCCESS { std::cout << __FUNCTION__ << " PASSED" << std::endl; }
