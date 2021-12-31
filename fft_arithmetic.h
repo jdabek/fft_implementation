@@ -8,15 +8,42 @@ class ComputeFft
 public:
     ComputeFft(const ComplexVector& vec)
     {
-        if (vec.size() < 2)
-            throw std::runtime_error("ComputeFft: incompatible data");
+        init(vec, true);
+    }
 
-        for (unsigned i = 0; i < vec.size(); i++)
+    ComputeFft(const std::vector<double>& realVec)
+    {
+        ComplexVector vec(realVec.size());
+
+        for (unsigned i = 0; i < realVec.size(); i++)
         {
-            ComplexNumber z;
-            vec.getElement(i, z);
-            if (std::isnan(z.re()) || std::isnan(z.im()))
-                throw std::runtime_error("ComputeFft: incompatible data w/NaN");
+            ComplexNumber z(realVec[i], 0.0);
+            if (std::isnan(realVec[i]))
+                throw std::invalid_argument(
+                        "ComputeFft: incompatible real data w/NaN");
+            vec.setElement(i, z);
+        }
+
+        init(vec, false);
+    }
+
+private:
+    void init(const ComplexVector& vec, bool checkIsNan)
+    {
+        if (vec.size() < 2)
+            throw std::invalid_argument(
+                    "ComputeFft: incompatible data length");
+
+        if (checkIsNan)
+        {
+            for (unsigned i = 0; i < vec.size(); i++)
+            {
+                ComplexNumber z;
+                vec.getElement(i, z);
+                if (std::isnan(z.re()) || std::isnan(z.im()))
+                    throw std::invalid_argument(
+                            "ComputeFft: incompatible complex data w/NaN");
+            }
         }
 
         _nsampBits = 0;
@@ -67,6 +94,7 @@ public:
         return vec;
     }
 
+public:
     ComplexVector getInput() { return _input; }
 
     ComplexVector getFft()

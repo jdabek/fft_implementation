@@ -106,7 +106,7 @@ public:
             std::stringstream ss;
             ss << "Error: ComplexVector access: "
                << i << " >= " << this->size();
-            throw std::runtime_error(ss.str());
+            throw std::invalid_argument(ss.str());
         }
 
         return _vec[i];
@@ -118,9 +118,9 @@ private:
         if (i >= this->size())
         {
             std::stringstream ss;
-            ss << "Error: ComplexVector access: "
+            ss << "Error: ComplexVector ref access: "
                << i << " >= " << this->size();
-            throw std::runtime_error(ss.str());
+            throw std::invalid_argument(ss.str());
         }
 
         return _vec[i];

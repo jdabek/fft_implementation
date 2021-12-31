@@ -331,11 +331,36 @@ public:
         ENSURE((vecnan * vec11).size() == 0u);
         ENSURE((vecnan / vec11).size() == 0u);
 
+        try
+        {
+            vec11[5];
+            ENSURE(false);
+        }
+        catch (std::invalid_argument e)
+        {
+            std::cout << e.what() << std::endl;
+            ENSURE(true);
+        }
+
+        try
+        {
+            const ComplexVector vec13(3);
+            vec13[5];
+            ENSURE(false);
+        }
+        catch (std::invalid_argument e)
+        {
+            std::cout << e.what() << std::endl;
+            ENSURE(true);
+        }
+
         SUCCESS;
     }
 
     static void testFft2PowImplementation()
     {
+        ComplexNumber z;
+   
         ComplexVector data(16);
         int f = 4;
         for (unsigned i = 0; i < data.size(); i++)
@@ -353,20 +378,19 @@ public:
 
         for (unsigned i = 0; i < data.size(); i++)
         {
-            ComplexNumber z;
             fft.getElement(i, z);
             if (i == f)
             {
-                ENSURE((z - ComplexNumber(16.0, 0.0)).abs() < 1e-10);
+                ENSURE((z - ComplexNumber(1.0*data.size(), 0.0)).abs() < 1e-10);
             }
             else
             {
                 ENSURE(z.abs() < 1e-10);
             }
             ifft.getElement(i, z);
-            if (i == 16-f)
+            if (i == data.size() - f)
             {
-                ENSURE((z - ComplexNumber(16.0, 0.0)).abs() < 1e-10);
+                ENSURE((z - ComplexNumber(1.0*data.size(), 0.0)).abs() < 1e-10);
             }
             else
             {
@@ -405,6 +429,107 @@ public:
 
         ENSURE(cfft.getFft().size() == 0);
         ENSURE(cfft.getIfft().size() == 0);
+
+        std::vector<double> realVec(16);
+        for (unsigned i = 0; i < realVec.size(); i++)
+        {
+            realVec[i] = std::sin(f * 2.0 * M_PI * i / realVec.size());
+        }
+
+        cfft = ComputeFft(realVec);
+        fft = cfft.getFft();
+        ifft = cfft.getIfft();
+
+        for (unsigned i = 0; i < realVec.size(); i++)
+        {
+            if (i == f)
+            {
+                fft.getElement(i, z);
+                ENSURE((z - ComplexNumber(0.0, -0.5*realVec.size())).abs() < 10e-6);
+                ifft.getElement(i, z);
+                ENSURE((z - ComplexNumber(0.0, 0.5*realVec.size())).abs() < 10e-6);
+            }
+            else if (i == realVec.size() - f)
+            {
+                fft.getElement(i, z);
+                ENSURE((z - ComplexNumber(0.0, 0.5*realVec.size())).abs() < 10e-6);
+                ifft.getElement(i, z);
+                ENSURE((z - ComplexNumber(0.0, -0.5*realVec.size())).abs() < 10e-6);
+            }
+            else
+            {
+                fft.getElement(i, z);
+                ENSURE(z.abs() < 10e-6);
+                ifft.getElement(i, z);
+                ENSURE(z.abs() < 10e-6);
+            }
+        }
+
+        realVec = std::vector<double>(16, 0.0);
+        realVec[f] = 1.0;
+
+        cfft = ComputeFft(realVec);
+        fft = cfft.getFft();
+        ifft = cfft.getIfft();
+
+        for (unsigned i = 0; i < realVec.size(); i++)
+        {
+            double c = std::cos(f * 2.0 * M_PI * i / realVec.size());
+            double s = std::sin(f * 2.0 * M_PI * i / realVec.size());
+            fft.getElement(i, z);
+            ENSURE((z - ComplexNumber(c, -s)).abs() < 10e-6);
+            ifft.getElement(i, z);
+            ENSURE((z - ComplexNumber(c, s)).abs() < 10e-6);
+        }
+
+        try
+        {
+            realVec = { 1.0 };
+            cfft = ComputeFft(realVec);
+            ENSURE(false);
+        }
+        catch (std::invalid_argument e)
+        {
+            std::cout << e.what() << std::endl;
+            ENSURE(true);
+        }
+
+        try
+        {
+            std::vector<double> realVec = { 1.0, std::nan("0") };
+            cfft = ComputeFft(realVec);
+            ENSURE(false);
+        }
+        catch (std::invalid_argument e)
+        {
+            std::cout << e.what() << std::endl;
+            ENSURE(true);
+        }
+        
+        try
+        {
+            data.setElement(1,
+                    ComplexNumber(std::nan("0"), std::nan("0")));
+            cfft = ComputeFft(data);
+            ENSURE(false);
+        }
+        catch (std::invalid_argument e)
+        {
+            std::cout << e.what() << std::endl;
+            ENSURE(true);
+        }
+
+        try
+        {
+            data = ComplexVector(1);
+            cfft = ComputeFft(data);
+            ENSURE(false);
+        }
+        catch (std::invalid_argument e)
+        {
+            std::cout << e.what() << std::endl;
+            ENSURE(true);
+        }
 
         SUCCESS;
     }
