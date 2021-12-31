@@ -30,10 +30,6 @@ public:
 private:
     void init(const ComplexVector& vec, bool checkIsNan)
     {
-        if (vec.size() < 2)
-            throw std::invalid_argument(
-                    "ComputeFft: incompatible data length");
-
         if (checkIsNan)
         {
             for (unsigned i = 0; i < vec.size(); i++)
@@ -46,36 +42,40 @@ private:
             }
         }
 
-        _nsampBits = 0;
-        double nsampBits = std::log2(vec.size());
-        double di;
-        if (modf(nsampBits, &di) == 0.0)
-            _nsampBits = nsampBits;
-
         _input = vec;
     }
 
+    // Cooley-Tukey FFT: radix-2 decimation-in-time (DIT)
     // The count of samples is 2^nsampBits.
     ComplexVector getPow2Fft(
+            const ComplexVector& input,
             unsigned i0,
             unsigned nsampBits,
             unsigned s,
             bool doIfft)
     {
+        if (_input.size() == 0)
+            return ComplexVector(0);
+
+        double nsampBits0 = std::log2(input.size());
+        double di;
+        if (modf(nsampBits0, &di) != 0.0)
+            return ComplexVector(0);
+
         unsigned N = std::pow(2, nsampBits);
         ComplexVector vec(N);
 
         if (nsampBits == 0)
         {
             ComplexNumber z;
-            _input.getElement(i0, z);
+            input.getElement(i0, z);
             vec.setElement(0, z);
         
             return vec;
         }
 
-        ComplexVector vec1 = getPow2Fft(i0, nsampBits - 1, 2 * s, doIfft);
-        ComplexVector vec2 = getPow2Fft(i0 + s, nsampBits - 1, 2 * s, doIfft);
+        ComplexVector vec1 = getPow2Fft(input, i0, nsampBits - 1, 2 * s, doIfft);
+        ComplexVector vec2 = getPow2Fft(input, i0 + s, nsampBits - 1, 2 * s, doIfft);
 
         double alpha = -2.0 * M_PI / N;
         if (doIfft)
@@ -91,6 +91,83 @@ private:
             vec.setElement(i + N/2, p - q);
         }
 
+        if (vec.size() == input.size() && doIfft)
+            vec = vec / vec.size();
+
+        return vec;
+    }
+
+    // Bluestein's FFT algorithm:
+    // Using the convolution theorem and the Cooley-Tukey FFT
+    ComplexVector getSelectFft(bool doIfft)
+    {
+        if (_input.size() == 0)
+            return ComplexVector(0);
+
+        unsigned nsamp0 = _input.size();
+        double nsampBits0 = std::log2(nsamp0);
+        double di;
+        if (modf(nsampBits0, &di) == 0.0)
+        {
+            const unsigned nsampBits = std::log2(_input.size());
+            return getPow2Fft(_input, 0, nsampBits0, 1, doIfft);
+        }
+
+        unsigned nsamp1 = 2*nsamp0 - 1;
+        unsigned nsampBits2 = std::ceil(std::log2(nsamp1));
+        unsigned nsamp2 = std::pow(2, nsampBits2);
+
+        ComplexNumber z0(0.0, 0.0);
+        ComplexVector a(nsamp2, z0);
+        ComplexVector b(nsamp2, z0);
+
+        ComplexNumber z;
+        ComplexNumber zz;
+        double alpha = -M_PI/nsamp0;
+        if (doIfft)
+            alpha = -alpha;
+        ComplexVector chirp(nsamp0);
+        for (unsigned i = 0; i < nsamp2; i++)
+        {
+            if (i < nsamp0)
+            {
+                _input.getElement(i, z);
+                double x = std::cos(alpha*i*i);
+                double y = std::sin(alpha*i*i);
+                chirp.setElement(i, x, y);
+                a.setElement(i, z * ComplexNumber(x, y));
+                b.setElement(i, ComplexNumber(x, -y));
+            }
+            else
+            {
+                unsigned j = nsamp2 - i;
+                if (j < nsamp0)
+                {
+                    b.getElement(j, z);
+                    b.setElement(i, z);
+                }
+            }
+        }
+
+        ComplexVector fa
+                = getPow2Fft(a, 0, nsampBits2, 1, false);
+        ComplexVector fb
+                = getPow2Fft(b, 0, nsampBits2, 1, false);
+
+        ComplexVector ab
+                = getPow2Fft(fa*fb, 0, nsampBits2, 1, true);
+
+        ComplexVector vec(nsamp0);
+        for (unsigned i = 0; i < nsamp0; i++)
+        {
+            ab.getElement(i, z);
+            chirp.getElement(i, zz);
+            vec.setElement(i, z * zz);
+        }
+
+        if (doIfft)
+            vec = vec / _input.size();
+
         return vec;
     }
 
@@ -99,13 +176,9 @@ public:
 
     ComplexVector getFft()
     {
-        // TODO: Still has to be pow-2 count samples
-        if (_nsampBits == 0)
-            return ComplexVector(0);
-
         if (_fft.size() == 0)
         {
-            _fft = getPow2Fft(0, _nsampBits, 1, false);
+            _fft = getSelectFft(false);
         }
 
         return _fft;
@@ -113,23 +186,18 @@ public:
 
     ComplexVector getIfft()
     {
-        // TODO: Still has to be pow-2 count samples
-        if (_nsampBits == 0)
-            return ComplexVector(0);
-
         if (_ifft.size() == 0)
         {
-            _ifft = getPow2Fft(0, _nsampBits, 1, true);
+            _ifft = getSelectFft(true);
         }
 
         return _ifft;
     }
 
 private:
-    ComplexVector _input;
-    unsigned _nsampBits;
-    ComplexVector _fft;
-    ComplexVector _ifft;
+    ComplexVector   _input;
+    ComplexVector   _fft;
+    ComplexVector   _ifft;
 };
 
 #endif

@@ -76,6 +76,16 @@ public:
         return os;
     }
 
+    bool operator==(const ComplexNumber& z) const
+    {
+        return (this->re() == z.re()) && (this->im() == z.im());
+    }
+
+    bool operator!=(const ComplexNumber& z) const
+    {
+        return !((*this) == z);
+    }
+
 private:
     double _x;
     double _y;
@@ -90,6 +100,25 @@ public:
     ComplexVector(const unsigned nsamp)
     {
         _vec.resize(nsamp);
+    }
+
+    ComplexVector(const unsigned nsamp, const ComplexNumber& z)
+    {
+        _vec.resize(nsamp);
+        for (unsigned i = 0; i < _vec.size(); i++)
+        {
+            _vec[i] = z;
+        }
+    }
+
+    ComplexVector(const unsigned nsamp, const double d)
+    {
+        _vec.resize(nsamp);
+        ComplexNumber z(d, 0.0);
+        for (unsigned i = 0; i < _vec.size(); i++)
+        {
+            _vec[i] = z;
+        }
     }
 
     ComplexVector()
@@ -333,6 +362,36 @@ public:
         return out;
     }
 
+    bool operator==(const ComplexVector& vec) const
+    {
+        for (unsigned i = 0; i < this->size(); i++)
+        {
+            if (_vec[i] != vec[i])
+                return false;
+        }
+        return true;
+    }
+
+    bool operator!=(const ComplexVector& vec) const
+    {
+        return !((*this) == vec);
+    }
+
+    bool operator==(const ComplexNumber& z) const
+    {
+        for (unsigned i = 0; i < this->size(); i++)
+        {
+            if (_vec[i] != z)
+                return false;
+        }
+        return true;
+    }
+
+    bool operator!=(const ComplexNumber& z) const
+    {
+        return !((*this) == z);
+    }
+
     friend std::ostream& operator<<(std::ostream& os, const ComplexVector& vec)
     {
         for (unsigned i = 0; i < vec.size(); i++)
@@ -343,6 +402,56 @@ public:
 private:
     std::vector<ComplexNumber> _vec;
 };
+
+bool operator==(const ComplexNumber& z, const double d)
+{
+    return z == ComplexNumber(d, 0.0);
+}
+
+bool operator==(const double d, const ComplexNumber& z)
+{
+    return ComplexNumber(d, 0.0) == z;
+}
+
+bool operator!=(const ComplexNumber& z, const double d)
+{
+    return z != ComplexNumber(d, 0.0);
+}
+
+bool operator!=(const double d, const ComplexNumber& z)
+{
+    return ComplexNumber(d, 0.0) != z;
+}
+
+bool operator==(const ComplexNumber& z, const ComplexVector& vec)
+{
+    return vec == z;
+}
+
+bool operator!=(const ComplexNumber& z, const ComplexVector& vec)
+{
+    return vec != z;
+}
+
+bool operator==(const ComplexVector& vec, const double d)
+{
+    return vec == ComplexNumber(d, 0.0);
+}
+
+bool operator==(const double d, const ComplexVector& vec)
+{
+    return vec == ComplexNumber(d, 0.0);
+}
+
+bool operator!=(const ComplexVector& vec, const double d)
+{
+    return vec != ComplexNumber(d, 0.0);
+}
+
+bool operator!=(const double d, const ComplexVector& vec)
+{
+    return vec != ComplexNumber(d, 0.0);
+}
 
 ComplexVector operator+(const ComplexNumber& z, const ComplexVector& vec)
 {
@@ -367,6 +476,86 @@ ComplexVector operator/(const ComplexNumber& z, const ComplexVector& vec)
             out[i] = z / vec[i];
         }
         return out;    
+}
+
+ComplexNumber operator+(const ComplexNumber& z, const double d)
+{
+    return z + ComplexNumber(d, 0.0);
+}
+
+ComplexNumber operator+(const double d, const ComplexNumber& z)
+{
+    return ComplexNumber(d, 0.0) + z;
+}
+
+ComplexNumber operator-(const ComplexNumber& z, const double d)
+{
+    return z - ComplexNumber(d, 0.0);
+}
+
+ComplexNumber operator-(const double d, const ComplexNumber& z)
+{
+    return ComplexNumber(d, 0.0) - z;
+}
+
+ComplexNumber operator*(const ComplexNumber& z, const double d)
+{
+    return z * ComplexNumber(d, 0.0);
+}
+
+ComplexNumber operator*(const double d, const ComplexNumber& z)
+{
+    return ComplexNumber(d, 0.0) * z;
+}
+
+ComplexNumber operator/(const ComplexNumber& z, const double d)
+{
+    return z / ComplexNumber(d, 0.0);
+}
+
+ComplexNumber operator/(const double d, const ComplexNumber& z)
+{
+    return ComplexNumber(d, 0.0) / z;
+}
+
+ComplexVector operator+(const ComplexVector& vec, const double d)
+{
+    return vec + ComplexNumber(d, 0.0);
+}
+
+ComplexVector operator+(const double d, const ComplexVector& vec)
+{
+    return ComplexNumber(d, 0.0) + vec;
+}
+
+ComplexVector operator-(const ComplexVector& vec, const double d)
+{
+    return vec - ComplexNumber(d, 0.0);
+}
+
+ComplexVector operator-(const double d, const ComplexVector& vec)
+{
+    return ComplexNumber(d, 0.0) - vec;
+}
+
+ComplexVector operator*(const ComplexVector& vec, const double d)
+{
+    return vec * ComplexNumber(d, 0.0);
+}
+
+ComplexVector operator*(const double d, const ComplexVector& vec)
+{
+    return ComplexNumber(d, 0.0) * vec;
+}
+
+ComplexVector operator/(const ComplexVector& vec, const double d)
+{
+    return vec / ComplexNumber(d, 0.0);
+}
+
+ComplexVector operator/(const double d, const ComplexVector& vec)
+{
+    return ComplexNumber(d, 0.0) / vec;
 }
 
 #endif

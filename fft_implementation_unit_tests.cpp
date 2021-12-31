@@ -2,13 +2,13 @@
 #include "complex_arithmetic.h"
 #include "fft_arithmetic.h"
 
-#define ENSURE(x) { if (!(x)) { std::cout << __FUNCTION__ << " FAILED: line " << __LINE__ << std::endl; return; } }
-#define SUCCESS { std::cout << __FUNCTION__ << " PASSED" << std::endl; }
+#define ENSURE(x) { if (!(x)) { std::cout << __FUNCTION__ << " FAILED: line " << __LINE__ << std::endl; return 1; } }
+#define SUCCESS { std::cout << __FUNCTION__ << " PASSED" << std::endl; return 0; }
 
 class FftImplementationUnitTests
 {
 public:
-    static void testComplexArithmetic()
+    static int testComplexArithmetic()
     {
         ComplexNumber z(3.0, 4.0);
         ENSURE(z.re() == 3 && z.im() == 4);
@@ -44,16 +44,36 @@ public:
         ComplexNumber z0(0.0, 0.0);
         ENSURE(std::isnan((z / z0).re()) && std::isnan((z / z0).im()));
 
-
         ComplexNumber z3(1.0, 2.0);
         ComplexNumber z4(2.0, 1.0);
         ENSURE((z3^2).re() == -3 && (z4^2).im() == 4);
         ENSURE(std::isnan((znan^2).re()) && std::isnan((znan^2).im()));
 
+        ENSURE(ComplexNumber(3.0, 0.0) == ComplexNumber(3.0, 0.0));
+        ENSURE(!(ComplexNumber(3.0, 0.0) == ComplexNumber(0.0, 0.0)));
+        ENSURE(!(ComplexNumber(3.0, 0.0) != ComplexNumber(3.0, 0.0)));
+        ENSURE(ComplexNumber(3.0, 0.0) != ComplexNumber(0.0, 0.0));
+        ENSURE(ComplexNumber(3.0, 0.0) == 3);
+        ENSURE(3 == ComplexNumber(3.0, 0.0));
+        ENSURE(!(ComplexNumber(3.0, 0.0) == 4));
+        ENSURE(!(4 == ComplexNumber(3.0, 0.0)));
+
+        ComplexNumber z5(3.0, 6.0);
+        double d = 3.0;
+
+        ENSURE(z5 + d == ComplexNumber(6.0, 6.0));
+        ENSURE(d + z5 == ComplexNumber(6.0, 6.0));
+        ENSURE(z5 - d == ComplexNumber(0.0, 6.0));
+        ENSURE(d - z5 == ComplexNumber(0.0, -6.0));
+        ENSURE(z5 * d == ComplexNumber(9.0, 18.0));
+        ENSURE(d * z5 == ComplexNumber(9.0, 18.0));
+        ENSURE(z5 / d == ComplexNumber(1.0, 2.0));
+        ENSURE(d / z5 == ComplexNumber(0.2, -0.4));
+
         SUCCESS;
     }
 
-    static void testComplexVector()
+    static int testComplexVector()
     {
         ComplexVector vec(3);
         ENSURE(vec.size() == 3u);
@@ -67,6 +87,8 @@ public:
             ENSURE(true);
         }
 
+        ENSURE(ComplexVector(3, 1.0) == ComplexNumber(1.0, 0.0));
+
         ComplexNumber z;
         ENSURE(vec.getElement(0, z));
         ENSURE(std::isnan(z.re()) && std::isnan(z.im()));
@@ -75,6 +97,11 @@ public:
         ENSURE(vec.getElement(2, z));
         ENSURE(std::isnan(z.re()) && std::isnan(z.im()));
         ENSURE(!vec.getElement(5, z));
+
+        vec = ComplexVector(3, ComplexNumber(1.0, 2.0));
+        ENSURE(vec[0] == ComplexNumber(1.0, 2.0));
+        ENSURE(vec[1] == ComplexNumber(1.0, 2.0));
+        ENSURE(vec[2] == ComplexNumber(1.0, 2.0));
 
         ENSURE(vec.setElement(0, 1.0, -5.0));
         ENSURE(vec.setElement(1, 2.0, 0.0));
@@ -354,10 +381,66 @@ public:
             ENSURE(true);
         }
 
+        ComplexVector vec13a(2, ComplexNumber(1.0, 0.0));
+        ComplexVector vec13b(2, ComplexNumber(1.0, 0.0));
+
+        ENSURE(vec13a == vec13b);
+        ENSURE(!(vec13a != vec13b));
+        ENSURE(vec13a == ComplexNumber(1.0, 0.0));
+        ENSURE(!(vec13a != ComplexNumber(1.0, 0.0)));
+        ENSURE(ComplexNumber(1.0, 0.0) == vec13a);
+        ENSURE(!(ComplexNumber(1.0, 0.0) != vec13a));
+        ENSURE(vec13a == 1);
+        ENSURE(!(vec13a != 1));
+        ENSURE(1 == vec13a);
+        ENSURE(!(1 != vec13a));
+        vec13b.setElement(1, 0.0, 0.0);
+        ENSURE(!(vec13a == vec13b));
+        ENSURE(vec13a != vec13b);
+        ENSURE(!(vec13b == ComplexNumber(1.0, 0.0)));
+        ENSURE(vec13b != ComplexNumber(1.0, 0.0));
+        ENSURE(!(ComplexNumber(1.0, 0.0) == vec13b));
+        ENSURE(ComplexNumber(1.0, 0.0) != vec13b);
+        ENSURE(!(vec13b == 1));
+        ENSURE(vec13b != 1);
+        ENSURE(!(1 == vec13b));
+        ENSURE(1 != vec13b);
+
+        double d = 3.0;
+
+        ComplexVector vec14(2);
+        vec14.setElement(0, 3.0, 6.0);
+        vec14.setElement(1, 6.0, 3.0);
+        ComplexVector vec15 = vec14;
+
+        vec15.setElement(0, 6.0, 6.0);
+        vec15.setElement(1, 9.0, 3.0);
+        ENSURE(vec14 + d == vec15);
+        ENSURE(d + vec14 == vec15);
+
+        vec15.setElement(0, 0.0, 6.0);
+        vec15.setElement(1, 3.0, 3.0);
+        ENSURE(vec14 - d == vec15);
+        vec15.setElement(0, 0.0, -6.0);
+        vec15.setElement(1, -3.0, -3.0);
+        ENSURE(d - vec14 == vec15);
+
+        vec15.setElement(0, 9.0, 18.0);
+        vec15.setElement(1, 18.0, 9.0);
+        ENSURE(vec14 * d == vec15);
+        ENSURE(d * vec14 == vec15);
+
+        vec15.setElement(0, 1.0, 2.0);
+        vec15.setElement(1, 2.0, 1.0);
+        ENSURE(vec14 / d == vec15);
+        vec15.setElement(0, 0.2, -0.4);
+        vec15.setElement(1, 0.4, -0.2);
+        ENSURE(d / vec14 == vec15);
+
         SUCCESS;
     }
 
-    static void testFft2PowImplementation()
+    static int testFft2PowImplementation()
     {
         ComplexNumber z;
    
@@ -390,7 +473,7 @@ public:
             ifft.getElement(i, z);
             if (i == data.size() - f)
             {
-                ENSURE((z - ComplexNumber(1.0*data.size(), 0.0)).abs() < 1e-10);
+                ENSURE((z - ComplexNumber(1.0, 0.0)).abs() < 1e-10);
             }
             else
             {
@@ -415,20 +498,10 @@ public:
                     std::sin(f * 2.0 * M_PI * i / data.size()),
                     std::cos(f * 2.0 * M_PI * i / data.size()))).abs() < 1e-10);
             ifft.getElement(i, z);
-            ENSURE((z - ComplexNumber(
+            ENSURE((z*ComplexNumber(data.size(), 0.0) - ComplexNumber(
                     -std::sin(f * 2.0 * M_PI * i / data.size()),
                     std::cos(f * 2.0 * M_PI * i / data.size()))).abs() < 1e-10);
         }
-
-        data = ComplexVector(3);
-        data.setElement(0, 1.0, 0.0);
-        data.setElement(1, 2.0, 1.0);
-        data.setElement(2, 3.0, 2.0);
-        
-        cfft = ComputeFft(data);
-
-        ENSURE(cfft.getFft().size() == 0);
-        ENSURE(cfft.getIfft().size() == 0);
 
         std::vector<double> realVec(16);
         for (unsigned i = 0; i < realVec.size(); i++)
@@ -447,14 +520,14 @@ public:
                 fft.getElement(i, z);
                 ENSURE((z - ComplexNumber(0.0, -0.5*realVec.size())).abs() < 10e-6);
                 ifft.getElement(i, z);
-                ENSURE((z - ComplexNumber(0.0, 0.5*realVec.size())).abs() < 10e-6);
+                ENSURE((z - ComplexNumber(0.0, 0.5)).abs() < 10e-6);
             }
             else if (i == realVec.size() - f)
             {
                 fft.getElement(i, z);
                 ENSURE((z - ComplexNumber(0.0, 0.5*realVec.size())).abs() < 10e-6);
                 ifft.getElement(i, z);
-                ENSURE((z - ComplexNumber(0.0, -0.5*realVec.size())).abs() < 10e-6);
+                ENSURE((z - ComplexNumber(0.0, -0.5)).abs() < 10e-6);
             }
             else
             {
@@ -479,20 +552,20 @@ public:
             fft.getElement(i, z);
             ENSURE((z - ComplexNumber(c, -s)).abs() < 10e-6);
             ifft.getElement(i, z);
-            ENSURE((z - ComplexNumber(c, s)).abs() < 10e-6);
+            ENSURE((z*ComplexNumber(realVec.size(), 0.0)
+                    - ComplexNumber(c, s)).abs() < 10e-6);
         }
 
-        try
-        {
-            realVec = { 1.0 };
-            cfft = ComputeFft(realVec);
-            ENSURE(false);
-        }
-        catch (std::invalid_argument e)
-        {
-            std::cout << e.what() << std::endl;
-            ENSURE(true);
-        }
+        z = ComplexNumber(1.0, 2.0);
+        ComplexVector data2 = ComplexVector(1, z);
+        cfft = ComputeFft(data2);
+        ENSURE(cfft.getFft()[0] == z && cfft.getIfft()[0] == z);
+
+        data2 = ComplexVector(0);
+        cfft = ComputeFft(data2);
+        ENSURE(cfft.getInput().size() == 0);
+        ENSURE(cfft.getFft().size() == 0);
+        ENSURE(cfft.getIfft().size() == 0);
 
         try
         {
@@ -531,16 +604,65 @@ public:
             ENSURE(true);
         }
 
+        for (unsigned k = 0; k < 4; k++)
+        {
+            data = ComplexVector(127+k);
+            for (unsigned i = 0; i < data.size(); i++)
+            {
+                data.setElement(i, ComplexNumber(0.0, 0.0));
+            }
+            data.setElement(f, ComplexNumber(0.0, 1.0));
+
+            cfft = ComputeFft(data);
+
+            fft = cfft.getFft();
+            for (unsigned i = 0; i < data.size(); i++)
+            {
+                fft.getElement(i, z);
+                ENSURE((z - ComplexNumber(
+                        std::sin(f * 2.0 * M_PI * i / data.size()),
+                        std::cos(f * 2.0 * M_PI * i / data.size()))).abs() < 1e-10);
+            }
+
+            data = ComplexVector(127+k);
+            for (unsigned i = 0; i < data.size(); i++)
+            {
+                data.setElement(i, ComplexNumber(
+                        std::cos(f * 2.0 * M_PI * i / data.size()),
+                        std::sin(f * 2.0 * M_PI * i / data.size())));
+            }
+
+            cfft = ComputeFft(data);
+
+            cfft = ComputeFft(cfft.getFft());
+
+            ifft = cfft.getIfft();
+            for (unsigned i = 0; i < data.size(); i++)
+            {
+                ifft.getElement(i, z);
+                ENSURE((z - ComplexNumber(
+                        std::cos(f * 2.0 * M_PI * i / data.size()),
+                        std::sin(f * 2.0 * M_PI * i / data.size()))).abs() < 1e-10);
+            }
+        }
+
         SUCCESS;
     }
 };
 
 int main(void)
 {
-    FftImplementationUnitTests::testComplexArithmetic();
-    FftImplementationUnitTests::testComplexVector();
+    int nfail = 0;
 
-    FftImplementationUnitTests::testFft2PowImplementation();
+    nfail += FftImplementationUnitTests::testComplexArithmetic();
+    nfail += FftImplementationUnitTests::testComplexVector();
+
+    nfail += FftImplementationUnitTests::testFft2PowImplementation();
+
+    if (!nfail)
+        std::cout << "All tests PASSED." << std::endl;
+    else
+        std::cout << "There were " << nfail << " FAILED tests." << std::endl;
 
     return 0;
 }
