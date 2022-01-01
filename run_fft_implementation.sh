@@ -9,7 +9,7 @@ g++ fft_implementation.cpp -o fft_implementation.o
 # Note: This script saves the fft output to "fft.txt"
 ./fft_implementation.o
 
-# Finally, plot the data in "fft.txt"
-# Note: This python script saves the fft output as an image "fft.png"
-python3 plot_ffts.py
+# Validate the implementation
+# Note: This python script uses text files to operate on the transformations
+python3 validate_implementation.py
 
