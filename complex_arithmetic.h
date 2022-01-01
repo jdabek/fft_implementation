@@ -72,7 +72,7 @@ public:
 
     friend std::ostream& operator<<(std::ostream& os, const ComplexNumber& z)
     {
-        os << "(" << z.re() << ", " << z.im() << ")";
+        os << z.re() << " " << z.im();
         return os;
     }
 

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <chrono>
 #include "complex_arithmetic.h"
 #include "fft_arithmetic.h"
 
@@ -440,7 +441,7 @@ public:
         SUCCESS;
     }
 
-    static int testFft2PowImplementation()
+    static int testFftImplementation()
     {
         ComplexNumber z;
    
@@ -648,6 +649,77 @@ public:
 
         SUCCESS;
     }
+
+    static int testFftPerformance(unsigned nbits)
+    {
+        unsigned pow2 = std::pow(2, nbits);
+
+        ComplexVector datapow2(pow2);
+        int f = 50;
+        for (unsigned i = 0; i < datapow2.size(); i++)
+        {
+            datapow2.setElement(
+                    i,
+                    std::cos(f * 2.0 * M_PI * i / datapow2.size()),
+                    std::sin(f * 2.0 * M_PI * i / datapow2.size()));
+        }
+
+        ComputeFft cfftpow2(datapow2);
+
+        auto tpow2fft1 = std::chrono::high_resolution_clock::now();
+        cfftpow2.getFft();
+        auto tpow2fft2 = std::chrono::high_resolution_clock::now();
+
+        auto tpow2ifft1 = std::chrono::high_resolution_clock::now();
+        cfftpow2.getIfft();
+        auto tpow2ifft2 = std::chrono::high_resolution_clock::now();
+
+        ComplexVector datapow2p1(pow2+1);
+        for (unsigned i = 0; i < datapow2p1.size(); i++)
+        {
+            datapow2p1.setElement(
+                    i,
+                    std::cos(f * 2.0 * M_PI * i / datapow2p1.size()),
+                    std::sin(f * 2.0 * M_PI * i / datapow2p1.size()));
+        }
+
+        ComputeFft cfftpow2p1(datapow2p1);
+
+        auto tpow2p1fft1 = std::chrono::high_resolution_clock::now();
+        cfftpow2p1.getFft();
+        auto tpow2p1fft2 = std::chrono::high_resolution_clock::now();
+
+        auto tpow2p1ifft1 = std::chrono::high_resolution_clock::now();
+        cfftpow2p1.getIfft();
+        auto tpow2p1ifft2 = std::chrono::high_resolution_clock::now();
+
+        auto uspow2fft = std::chrono::duration_cast<std::chrono::microseconds>(
+                tpow2fft2 - tpow2fft1);
+        auto uspow2ifft = std::chrono::duration_cast<std::chrono::microseconds>(
+                tpow2ifft2 - tpow2ifft1);
+
+        auto uspow2p1fft = std::chrono::duration_cast<std::chrono::microseconds>(
+                tpow2p1fft2 - tpow2p1fft1);
+        auto uspow2p1ifft = std::chrono::duration_cast<std::chrono::microseconds>(
+                tpow2p1ifft2 - tpow2p1ifft1);
+
+        std::cout << "Duration fft (microseconds) pow2 (" << pow2 << "): "
+                  << uspow2fft.count() << std::endl;
+        std::cout << "Duration ifft (microseconds) pow2 (" << pow2 << "): "
+                  << uspow2ifft.count() << std::endl;
+
+        std::cout << "Duration fft (microseconds) pow2+1 (" << pow2+1 << "): "
+                  << uspow2p1fft.count() << std::endl;
+        std::cout << "Duration ifft (microseconds) pow2+1 (" << pow2+1 << "): "
+                  << uspow2p1ifft.count() << std::endl;
+        
+        int scalerThreshold = 20;
+        ENSURE(uspow2p1fft.count() < scalerThreshold*uspow2fft.count());
+        ENSURE(uspow2p1ifft.count() < scalerThreshold*uspow2ifft.count());
+
+        SUCCESS;
+    }
+
 };
 
 int main(void)
@@ -657,7 +729,11 @@ int main(void)
     nfail += FftImplementationUnitTests::testComplexArithmetic();
     nfail += FftImplementationUnitTests::testComplexVector();
 
-    nfail += FftImplementationUnitTests::testFft2PowImplementation();
+    nfail += FftImplementationUnitTests::testFftImplementation();
+    nfail += FftImplementationUnitTests::testFftPerformance(2);
+    nfail += FftImplementationUnitTests::testFftPerformance(4);
+    nfail += FftImplementationUnitTests::testFftPerformance(8);
+    nfail += FftImplementationUnitTests::testFftPerformance(16);
 
     if (!nfail)
         std::cout << "All tests PASSED." << std::endl;

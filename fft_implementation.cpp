@@ -1,34 +1,106 @@
 #include <iostream>
 #include <fstream>
+#include <limits>
+#include <iomanip>
 #include "fft_arithmetic.h" 
+
+std::vector<std::pair<double, double>> readNumericData(const std::string fin)
+{
+    std::vector<std::pair<double, double>> vals;
+
+    std::ifstream fins(fin);
+    if (!fins.good())
+    {
+        std::cout << "File does not exist: " << fin << std::endl;
+        return vals;
+    }
+
+    unsigned nsamp = 0;
+    std::string line;
+    double a, b;
+    for (unsigned nparse = 2; nparse > 0; nparse--)
+    {
+        if (nsamp > 0)
+            break;
+        while (std::getline(fins, line))
+        {
+            std::istringstream iss(line);
+            if (nparse == 2)
+            {
+                if (!(iss >> a >> b))
+                    break;
+            }
+            else
+            {
+                if (!(iss >> a))
+                    break;
+                b = 0.0;
+            }
+            nsamp++;
+            vals.emplace_back(a, b);
+        }
+        fins.clear();
+        fins.seekg(0);
+    }
+
+    return vals; 
+}
 
 int main(int argc, char* argv[])
 {
-    unsigned nsamp = 127;
+    if (argc != 4)
+    {
+        std::cout << "Please give 3 arguments: [i]fft input_file.txt output_file.txt" << std::endl;
+        std::cout << "[i]fft: fft for foward transformation, ifft for backward" << std::endl;
+        std::cout << "input_file.txt : real or complex list of input values" << std::endl;
+        std::cout << "output_file.txt : write list of complex output values" << std::endl;
+        std::cout << "List type: one (real) or two (complex) floats per line" << std::endl;
+        return 0;
+    }
+
+    std::string transform = argv[1];
+    bool doIfft = false;
+    if (transform == "ifft")
+        doIfft = true;
+    if (!doIfft && transform != "fft")
+    {
+        std::cout << "Unknown transformation: " << transform << std::endl;
+        return 1;
+    }
+    std::string fin = argv[2];
+    std::string fout = argv[3];
+
+    std::vector<std::pair<double, double>> vals = readNumericData(fin);
+
+    if (vals.empty())
+    {
+        std::cout << "Could not parse file: " << fin << std::endl;
+        return 1;
+    }
+
+    unsigned nsamp = vals.size();
     ComplexVector data(nsamp);
-    std::vector<std::pair<double, double>>
-            freqPhase = { std::make_pair(5.7, 2.1),
-                          std::make_pair(29.2, 1.5) };
 
     for (unsigned i = 0; i < nsamp; i++)
     {
-        double x = 0.0;
-        double y = 0.0;
-        for (const auto& fp : freqPhase)
-        {
-            x += std::cos(fp.second + fp.first * 2.0 * M_PI * i / nsamp);
-            y += std::sin(fp.second + fp.first * 2.0 * M_PI * i / nsamp);
-        }
-        data.setElement(i, x, y);
+        data.setElement(i, vals[i].first, vals[i].second);
     }
 
     ComputeFft cfft(data);
 
-    ComplexVector fft = cfft.getFft();
+    ComplexVector trans;
+    if (!doIfft)
+        trans = cfft.getFft();
+    else
+        trans = cfft.getIfft();
 
     std::ofstream ofs;
-    ofs.open("fft.txt");
-    ofs << fft;
+    ofs.open(fout);
+
+    using dbl = std::numeric_limits<double>;
+    ofs << std::setprecision(dbl::max_digits10);
+
+    ofs << trans;
     ofs.close();
 
     return 0;
