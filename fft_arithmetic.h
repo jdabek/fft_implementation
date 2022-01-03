@@ -6,103 +6,128 @@
 class ComputeFft
 {
 public:
-    ComputeFft(const ComplexVector& vec)
+    ComputeFft(const PairVector& pvec)
     {
-        init(vec, true);
+        init(pvec, true);
     }
 
     ComputeFft(const std::vector<double>& realVec)
     {
-        ComplexVector vec(realVec.size());
+        PairVector pvec(realVec.size());
 
-        for (unsigned i = 0; i < realVec.size(); i++)
+        for (unsigned i = 0; i < pvec.size(); i++)
         {
-            ComplexNumber z(realVec[i], 0.0);
             if (std::isnan(realVec[i]))
+            {
                 throw std::invalid_argument(
                         "ComputeFft: incompatible real data w/NaN");
-            vec.setElement(i, z);
+            }
+            pvec[i] = std::make_pair(realVec[i], 0.0);
         }
 
-        init(vec, false);
+        init(pvec, false);
+    }
+
+    ComputeFft(const ComplexVector& vec)
+    {
+        PairVector pvec(vec.size());
+
+        for (unsigned i = 0; i < vec.size(); i++)
+        {
+            ComplexNumber z;
+            vec.getElement(i, z);
+            if (std::isnan(z.re()) || std::isnan(z.im()))
+            {
+                throw std::invalid_argument(
+                        "ComputeFft: incompatible complex data w/NaN");
+            }
+            pvec[i] = std::make_pair(z.re(), z.im());
+        }
+
+        init(pvec, false);
     }
 
 private:
-    void init(const ComplexVector& vec, bool checkIsNan)
+    void init(const PairVector& pvec, bool checkIsNan)
     {
         if (checkIsNan)
         {
-            for (unsigned i = 0; i < vec.size(); i++)
+            for (unsigned i = 0; i < pvec.size(); i++)
             {
-                ComplexNumber z;
-                vec.getElement(i, z);
-                if (std::isnan(z.re()) || std::isnan(z.im()))
+                if (std::isnan(pvec[i].first) || std::isnan(pvec[i].second))
+                {
                     throw std::invalid_argument(
                             "ComputeFft: incompatible complex data w/NaN");
+                }
             }
         }
 
-        _input = vec;
+        _input = pvec;
     }
 
     // Cooley-Tukey FFT: radix-2 decimation-in-time (DIT)
     // The count of samples is 2^nsampBits.
-    ComplexVector getPow2Fft(
-            const ComplexVector& input,
+    PairVector getPow2Fft(
+            const PairVector& input,
             unsigned i0,
             unsigned nsampBits,
             unsigned s,
             bool doIfft)
     {
         if (_input.size() == 0)
-            return ComplexVector(0);
+            return PairVector(0);
 
         double nsampBits0 = std::log2(input.size());
         double di;
         if (modf(nsampBits0, &di) != 0.0)
-            return ComplexVector(0);
+            return PairVector(0);
 
         unsigned N = std::pow(2, nsampBits);
-        ComplexVector vec(N);
+        PairVector pvec(N);
 
-        if (nsampBits == 0)
+        if (N == 1)
         {
-            ComplexNumber z;
-            input.getElement(i0, z);
-            vec.setElement(0, z);
+            pvec[0] = input[i0];
         
-            return vec;
+            return pvec;
         }
 
-        ComplexVector vec1 = getPow2Fft(input, i0, nsampBits - 1, 2 * s, doIfft);
-        ComplexVector vec2 = getPow2Fft(input, i0 + s, nsampBits - 1, 2 * s, doIfft);
+        PairVector pvec1 = getPow2Fft(input, i0, nsampBits - 1, 2 * s, doIfft);
+        PairVector pvec2 = getPow2Fft(input, i0 + s, nsampBits - 1, 2 * s, doIfft);
 
         double alpha = -2.0 * M_PI / N;
         if (doIfft)
             alpha = -alpha;
         for (unsigned i = 0; i < N/2; i++)
         {
-            ComplexNumber p;
-            ComplexNumber q;
-            vec1.getElement(i, p);
-            vec2.getElement(i, q);
-            q = q * ComplexNumber(std::cos(alpha * i), std::sin(alpha * i));
-            vec.setElement(i, p + q);
-            vec.setElement(i + N/2, p - q);
+            double arg = alpha * i;
+            double c = std::cos(arg);
+            double s = std::sin(arg);
+            DoublePair q;
+            q.first = pvec2[i].first * c - pvec2[i].second * s;
+            q.second = pvec2[i].first * s + pvec2[i].second * c;
+            pvec[i].first = pvec1[i].first + q.first;
+            pvec[i].second = pvec1[i].second + q.second;
+            pvec[i + N/2].first = pvec1[i].first - q.first;
+            pvec[i + N/2].second = pvec1[i].second - q.second;
+            if (pvec.size() == input.size() && doIfft)
+            {
+                pvec[i].first /= input.size();
+                pvec[i].second /= input.size();
+                pvec[i + N/2].first /= input.size();
+                pvec[i + N/2].second /= input.size();
+            }
         }
 
-        if (vec.size() == input.size() && doIfft)
-            vec = vec / vec.size();
-
-        return vec;
+        return pvec;
     }
 
     // Bluestein's FFT algorithm:
     // Using the convolution theorem and the Cooley-Tukey FFT
-    ComplexVector getSelectFft(bool doIfft)
+    PairVector getSelectFft(bool doIfft)
     {
         if (_input.size() == 0)
-            return ComplexVector(0);
+            return PairVector(0);
 
         unsigned nsamp0 = _input.size();
         double nsampBits0 = std::log2(nsamp0);
@@ -117,64 +142,80 @@ private:
         unsigned nsampBits2 = std::ceil(std::log2(nsamp1));
         unsigned nsamp2 = std::pow(2, nsampBits2);
 
-        ComplexNumber z0(0.0, 0.0);
-        ComplexVector a(nsamp2, z0);
-        ComplexVector b(nsamp2, z0);
+        DoublePair z0(0.0, 0.0);
+        PairVector a(nsamp2, z0);
+        PairVector b(nsamp2, z0);
 
-        ComplexNumber z;
-        ComplexNumber zz;
         double alpha = -M_PI/nsamp0;
         if (doIfft)
             alpha = -alpha;
-        ComplexVector chirp(nsamp0);
+        PairVector chirp(nsamp0);
         for (unsigned i = 0; i < nsamp2; i++)
         {
             if (i < nsamp0)
             {
-                _input.getElement(i, z);
-                double x = std::cos(alpha*i*i);
-                double y = std::sin(alpha*i*i);
-                chirp.setElement(i, x, y);
-                a.setElement(i, z * ComplexNumber(x, y));
-                b.setElement(i, ComplexNumber(x, -y));
+                double arg = alpha*i*i;
+                double x = std::cos(arg);
+                double y = std::sin(arg);
+                chirp[i] = std::make_pair(x, y);
+                a[i].first = _input[i].first * x - _input[i].second * y;
+                a[i].second = _input[i].first * y + _input[i].second * x;
+                b[i].first = x;
+                b[i].second = -y;
             }
             else
             {
                 unsigned j = nsamp2 - i;
                 if (j < nsamp0)
                 {
-                    b.getElement(j, z);
-                    b.setElement(i, z);
+                    b[i] = b[j];
                 }
             }
         }
 
-        ComplexVector fa
-                = getPow2Fft(a, 0, nsampBits2, 1, false);
-        ComplexVector fb
-                = getPow2Fft(b, 0, nsampBits2, 1, false);
+        a = getPow2Fft(a, 0, nsampBits2, 1, false);
+        b = getPow2Fft(b, 0, nsampBits2, 1, false);
 
-        ComplexVector ab
-                = getPow2Fft(fa*fb, 0, nsampBits2, 1, true);
+        PairVector c(nsamp2);
+        for (unsigned i = 0; i < nsamp2; i++)
+        {
+            c[i].first = a[i].first * b[i].first - a[i].second * b[i].second;
+            c[i].second = a[i].first * b[i].second + a[i].second * b[i].first;
+        }
+        a = getPow2Fft(c, 0, nsampBits2, 1, true);
 
-        ComplexVector vec(nsamp0);
+        PairVector pvec(nsamp0);
         for (unsigned i = 0; i < nsamp0; i++)
         {
-            ab.getElement(i, z);
-            chirp.getElement(i, zz);
-            vec.setElement(i, z * zz);
+            pvec[i].first = a[i].first * chirp[i].first - a[i].second * chirp[i].second;
+            pvec[i].second = a[i].first * chirp[i].second + a[i].second * chirp[i].first;
+            if (doIfft)
+            {
+                pvec[i].first /= _input.size();
+                pvec[i].second /= _input.size();
+            }
         }
 
-        if (doIfft)
-            vec = vec / _input.size();
-
-        return vec;
+        return pvec;
     }
 
 public:
-    ComplexVector getInput() { return _input; }
+    PairVector getInput() { return _input; }
 
-    ComplexVector getFft()
+    ComplexVector getInputComplexVector()
+    {
+        if (_input.size() > 0)
+        {
+            if (_inputComplexVector.size() == 0)
+            {
+                _inputComplexVector = ComplexVector(_input);
+            }
+        }
+
+        return _inputComplexVector;
+    }
+
+    PairVector getFft()
     {
         if (_fft.size() == 0)
         {
@@ -184,7 +225,22 @@ public:
         return _fft;
     }
 
-    ComplexVector getIfft()
+    ComplexVector getFftComplexVector()
+    {
+        if (_fft.size() == 0)
+        {
+            _fft = getSelectFft(false);
+        }
+
+        if (_fftComplexVector.size() == 0)
+        {
+            _fftComplexVector = ComplexVector(_fft);
+        }
+
+        return _fftComplexVector;
+    }
+
+    PairVector getIfft()
     {
         if (_ifft.size() == 0)
         {
@@ -194,10 +250,30 @@ public:
         return _ifft;
     }
 
+    ComplexVector getIfftComplexVector()
+    {
+        if (_ifft.size() == 0)
+        {
+            _ifft = getSelectFft(true);
+        }
+
+        if (_ifftComplexVector.size() == 0)
+        {
+            _ifftComplexVector = ComplexVector(_ifft);
+        }
+
+        return _ifftComplexVector;
+    }
+
 private:
-    ComplexVector   _input;
-    ComplexVector   _fft;
-    ComplexVector   _ifft;
+    PairVector  _input;
+    ComplexVector  _inputComplexVector;
+
+    PairVector  _fft;
+    ComplexVector   _fftComplexVector;
+
+    PairVector _ifft;
+    ComplexVector   _ifftComplexVector;
 };
 
 #endif

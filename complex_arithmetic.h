@@ -91,6 +91,9 @@ private:
     double _y;
 };
 
+using DoublePair = std::pair<double, double>;
+using PairVector = std::vector<DoublePair>;
+
 class ComplexVector
 {
 public:
@@ -118,6 +121,15 @@ public:
         for (unsigned i = 0; i < _vec.size(); i++)
         {
             _vec[i] = z;
+        }
+    }
+
+    ComplexVector(PairVector pvec)
+    {
+        _vec.resize(pvec.size());
+        for (unsigned i = 0; i < _vec.size(); i++)
+        {
+            _vec[i] = ComplexNumber(pvec[i].first, pvec[i].second);
         }
     }
 
@@ -156,6 +168,17 @@ private:
     }
 
 public:
+    PairVector getPairVector()
+    {
+        PairVector pvec(this->size());
+        for (unsigned i = 0; i < this->size(); i++)
+        {
+            pvec[i].first = _vec[i].re();
+            pvec[i].second = _vec[i].im();
+        }
+        return pvec;
+    }
+
     bool setElement(
             const unsigned i,
             const double real,

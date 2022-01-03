@@ -4,9 +4,9 @@
 #include <iomanip>
 #include "fft_arithmetic.h" 
 
-std::vector<std::pair<double, double>> readNumericData(const std::string fin)
+PairVector readNumericData(const std::string fin)
 {
-    std::vector<std::pair<double, double>> vals;
+    PairVector vals;
 
     std::ifstream fins(fin);
     if (!fins.good())
@@ -70,7 +70,7 @@ int main(int argc, char* argv[])
     std::string fin = argv[2];
     std::string fout = argv[3];
 
-    std::vector<std::pair<double, double>> vals = readNumericData(fin);
+    PairVector vals = readNumericData(fin);
 
     if (vals.empty())
     {
@@ -79,16 +79,10 @@ int main(int argc, char* argv[])
     }
 
     unsigned nsamp = vals.size();
-    ComplexVector data(nsamp);
 
-    for (unsigned i = 0; i < nsamp; i++)
-    {
-        data.setElement(i, vals[i].first, vals[i].second);
-    }
+    ComputeFft cfft(vals);
 
-    ComputeFft cfft(data);
-
-    ComplexVector trans;
+    PairVector trans;
     if (!doIfft)
         trans = cfft.getFft();
     else
@@ -100,7 +94,8 @@ int main(int argc, char* argv[])
     using dbl = std::numeric_limits<double>;
     ofs << std::setprecision(dbl::max_digits10);
 
-    ofs << trans;
+    for (DoublePair pair : trans)
+        ofs << pair.first << " " << pair.second << std::endl;
     ofs.close();
 
     return 0;

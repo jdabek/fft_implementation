@@ -99,6 +99,18 @@ public:
         ENSURE(std::isnan(z.re()) && std::isnan(z.im()));
         ENSURE(!vec.getElement(5, z));
 
+        PairVector vecPair;
+        vecPair.emplace_back(1.0, 5.0);
+        vecPair.emplace_back(2.0, 4.0);
+        vec = ComplexVector(vecPair);
+        ENSURE(vec[0] == ComplexNumber(1.0, 5.0));
+        ENSURE(vec[1] == ComplexNumber(2.0, 4.0));
+
+        PairVector vecPair2;
+        vecPair2 = vec.getPairVector();
+        ENSURE(vecPair[0] == std::make_pair(1.0, 5.0));
+        ENSURE(vecPair[1] == std::make_pair(2.0, 4.0));
+
         vec = ComplexVector(3, ComplexNumber(1.0, 2.0));
         ENSURE(vec[0] == ComplexNumber(1.0, 2.0));
         ENSURE(vec[1] == ComplexNumber(1.0, 2.0));
@@ -457,8 +469,8 @@ public:
 
         ComputeFft cfft(data);
 
-        ComplexVector fft = cfft.getFft();
-        ComplexVector ifft = cfft.getIfft();
+        ComplexVector fft = cfft.getFftComplexVector();
+        ComplexVector ifft = cfft.getIfftComplexVector();
 
         for (unsigned i = 0; i < data.size(); i++)
         {
@@ -488,8 +500,8 @@ public:
 
         cfft = ComputeFft(data);
 
-        fft = cfft.getFft();
-        ifft = cfft.getIfft();
+        fft = cfft.getFftComplexVector();
+        ifft = cfft.getIfftComplexVector();
 
         for (unsigned i = 0; i < data.size(); i++)
         {
@@ -511,8 +523,8 @@ public:
         }
 
         cfft = ComputeFft(realVec);
-        fft = cfft.getFft();
-        ifft = cfft.getIfft();
+        fft = cfft.getFftComplexVector();
+        ifft = cfft.getIfftComplexVector();
 
         for (unsigned i = 0; i < realVec.size(); i++)
         {
@@ -543,8 +555,8 @@ public:
         realVec[f] = 1.0;
 
         cfft = ComputeFft(realVec);
-        fft = cfft.getFft();
-        ifft = cfft.getIfft();
+        fft = cfft.getFftComplexVector();
+        ifft = cfft.getIfftComplexVector();
 
         for (unsigned i = 0; i < realVec.size(); i++)
         {
@@ -560,7 +572,7 @@ public:
         z = ComplexNumber(1.0, 2.0);
         ComplexVector data2 = ComplexVector(1, z);
         cfft = ComputeFft(data2);
-        ENSURE(cfft.getFft()[0] == z && cfft.getIfft()[0] == z);
+        ENSURE(cfft.getFftComplexVector()[0] == z && cfft.getIfftComplexVector()[0] == z);
 
         data2 = ComplexVector(0);
         cfft = ComputeFft(data2);
@@ -616,7 +628,7 @@ public:
 
             cfft = ComputeFft(data);
 
-            fft = cfft.getFft();
+            fft = cfft.getFftComplexVector();
             for (unsigned i = 0; i < data.size(); i++)
             {
                 fft.getElement(i, z);
@@ -637,7 +649,7 @@ public:
 
             cfft = ComputeFft(cfft.getFft());
 
-            ifft = cfft.getIfft();
+            ifft = cfft.getIfftComplexVector();
             for (unsigned i = 0; i < data.size(); i++)
             {
                 ifft.getElement(i, z);
