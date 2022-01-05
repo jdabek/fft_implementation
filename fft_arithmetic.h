@@ -70,35 +70,26 @@ private:
     PairVector getPow2Fft(
             const PairVector& input,
             unsigned i0,
-            unsigned nsampBits,
+            unsigned N,
             unsigned s,
             bool doIfft)
     {
-        if (_input.size() == 0)
-            return PairVector(0);
-
-        double nsampBits0 = std::log2(input.size());
-        double di;
-        if (modf(nsampBits0, &di) != 0.0)
-            return PairVector(0);
-
-        unsigned N = std::pow(2, nsampBits);
-        PairVector pvec(N);
-
         if (N == 1)
         {
-            pvec[0] = input[i0];
-        
-            return pvec;
+            return { input[i0] };
         }
 
-        PairVector pvec1 = getPow2Fft(input, i0, nsampBits - 1, 2 * s, doIfft);
-        PairVector pvec2 = getPow2Fft(input, i0 + s, nsampBits - 1, 2 * s, doIfft);
+        PairVector pvec(N);
 
-        double alpha = -2.0 * M_PI / N;
+        N /= 2;
+
+        PairVector pvec1 = getPow2Fft(input, i0, N, 2 * s, doIfft);
+        PairVector pvec2 = getPow2Fft(input, i0 + s, N, 2 * s, doIfft);
+
+        double alpha = -M_PI / N;
         if (doIfft)
             alpha = -alpha;
-        for (unsigned i = 0; i < N/2; i++)
+        for (unsigned i = 0; i < N; i++)
         {
             double arg = alpha * i;
             double c = std::cos(arg);
@@ -108,14 +99,14 @@ private:
             q.second = pvec2[i].first * s + pvec2[i].second * c;
             pvec[i].first = pvec1[i].first + q.first;
             pvec[i].second = pvec1[i].second + q.second;
-            pvec[i + N/2].first = pvec1[i].first - q.first;
-            pvec[i + N/2].second = pvec1[i].second - q.second;
+            pvec[i + N].first = pvec1[i].first - q.first;
+            pvec[i + N].second = pvec1[i].second - q.second;
             if (pvec.size() == input.size() && doIfft)
             {
                 pvec[i].first /= input.size();
                 pvec[i].second /= input.size();
-                pvec[i + N/2].first /= input.size();
-                pvec[i + N/2].second /= input.size();
+                pvec[i + N].first /= input.size();
+                pvec[i + N].second /= input.size();
             }
         }
 
@@ -135,16 +126,15 @@ private:
         if (modf(nsampBits0, &di) == 0.0)
         {
             const unsigned nsampBits = std::log2(_input.size());
-            return getPow2Fft(_input, 0, nsampBits0, 1, doIfft);
+            return getPow2Fft(_input, 0, nsamp0, 1, doIfft);
         }
 
         unsigned nsamp1 = 2*nsamp0 - 1;
         unsigned nsampBits2 = std::ceil(std::log2(nsamp1));
         unsigned nsamp2 = std::pow(2, nsampBits2);
 
-        DoublePair z0(0.0, 0.0);
-        PairVector a(nsamp2, z0);
-        PairVector b(nsamp2, z0);
+        PairVector a(nsamp2);
+        PairVector b(nsamp2);
 
         double alpha = -M_PI/nsamp0;
         if (doIfft)
@@ -165,16 +155,23 @@ private:
             }
             else
             {
+                a[i].first = 0.0;
+                a[i].second = 0.0;
                 unsigned j = nsamp2 - i;
                 if (j < nsamp0)
                 {
                     b[i] = b[j];
                 }
+                else
+                {
+                    b[i].first = 0.0;
+                    b[i].second = 0.0;
+                }
             }
         }
 
-        a = getPow2Fft(a, 0, nsampBits2, 1, false);
-        b = getPow2Fft(b, 0, nsampBits2, 1, false);
+        a = getPow2Fft(a, 0, nsamp2, 1, false);
+        b = getPow2Fft(b, 0, nsamp2, 1, false);
 
         PairVector c(nsamp2);
         for (unsigned i = 0; i < nsamp2; i++)
@@ -182,13 +179,16 @@ private:
             c[i].first = a[i].first * b[i].first - a[i].second * b[i].second;
             c[i].second = a[i].first * b[i].second + a[i].second * b[i].first;
         }
-        a = getPow2Fft(c, 0, nsampBits2, 1, true);
+        a.clear();
+        b.clear();
+
+        c = getPow2Fft(c, 0, nsamp2, 1, true);
 
         PairVector pvec(nsamp0);
         for (unsigned i = 0; i < nsamp0; i++)
         {
-            pvec[i].first = a[i].first * chirp[i].first - a[i].second * chirp[i].second;
-            pvec[i].second = a[i].first * chirp[i].second + a[i].second * chirp[i].first;
+            pvec[i].first = c[i].first * chirp[i].first - c[i].second * chirp[i].second;
+            pvec[i].second = c[i].first * chirp[i].second + c[i].second * chirp[i].first;
             if (doIfft)
             {
                 pvec[i].first /= _input.size();
@@ -200,7 +200,10 @@ private:
     }
 
 public:
-    PairVector getInput() { return _input; }
+    PairVector getInput()
+    {
+        return _input;
+    }
 
     ComplexVector getInputComplexVector()
     {
@@ -266,13 +269,13 @@ public:
     }
 
 private:
-    PairVector  _input;
-    ComplexVector  _inputComplexVector;
+    PairVector      _input;
+    ComplexVector   _inputComplexVector;
 
-    PairVector  _fft;
+    PairVector      _fft;
     ComplexVector   _fftComplexVector;
 
-    PairVector _ifft;
+    PairVector      _ifft;
     ComplexVector   _ifftComplexVector;
 };
 
