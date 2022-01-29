@@ -67,8 +67,11 @@ private:
 
     // Cooley-Tukey FFT: radix-2 decimation-in-time (DIT)
     // The count of samples is 2^nsampBits.
-    PairVector getPow2Fft(
+    void getPow2Fft(
             const PairVector& input,
+            PairVector& output,
+            const PairVector& cosSin,
+            unsigned j0,
             unsigned i0,
             unsigned N,
             unsigned s,
@@ -76,62 +79,82 @@ private:
     {
         if (N == 1)
         {
-            return { input[i0] };
+            output[j0] = input[i0];
+            return;
         }
-
-        PairVector pvec(N);
 
         N /= 2;
 
-        PairVector pvec1 = getPow2Fft(input, i0, N, 2 * s, doIfft);
-        PairVector pvec2 = getPow2Fft(input, i0 + s, N, 2 * s, doIfft);
+        getPow2Fft(input, output, cosSin, j0, i0, N, 2 * s, doIfft);
+        getPow2Fft(input, output, cosSin, j0 + N, i0 + s, N, 2 * s, doIfft);
 
-        double alpha = -M_PI / N;
-        if (doIfft)
-            alpha = -alpha;
+        unsigned jump = input.size()/(2*N);
         for (unsigned i = 0; i < N; i++)
         {
-            double arg = alpha * i;
-            double c = std::cos(arg);
-            double s = std::sin(arg);
+            double c = cosSin[i*jump].first;
+            double s = cosSin[i*jump].second;
+            if (doIfft)
+                s = -s;
             DoublePair q;
-            q.first = pvec2[i].first * c - pvec2[i].second * s;
-            q.second = pvec2[i].first * s + pvec2[i].second * c;
-            pvec[i].first = pvec1[i].first + q.first;
-            pvec[i].second = pvec1[i].second + q.second;
-            pvec[i + N].first = pvec1[i].first - q.first;
-            pvec[i + N].second = pvec1[i].second - q.second;
-            if (pvec.size() == input.size() && doIfft)
-            {
-                pvec[i].first /= input.size();
-                pvec[i].second /= input.size();
-                pvec[i + N].first /= input.size();
-                pvec[i + N].second /= input.size();
-            }
+            q.first = output[j0+N+i].first * c - output[j0+N+i].second * s;
+            q.second = output[j0+N+i].first * s + output[j0+N+i].second * c;
+            output[j0+N+i].first = output[j0+i].first - q.first;
+            output[j0+N+i].second = output[j0+i].second - q.second;
+            output[j0+i].first = output[j0+i].first + q.first;
+            output[j0+i].second = output[j0+i].second + q.second;
         }
-
-        return pvec;
     }
 
     // Bluestein's FFT algorithm:
     // Using the convolution theorem and the Cooley-Tukey FFT
-    PairVector getSelectFft(bool doIfft)
+    void getSelectFft(bool doIfft)
     {
         if (_input.size() == 0)
-            return PairVector(0);
+            return;
 
         unsigned nsamp0 = _input.size();
         double nsampBits0 = std::log2(nsamp0);
         double di;
         if (modf(nsampBits0, &di) == 0.0)
         {
+            PairVector cosSin(nsamp0/2);
+            double alpha0 = -2.0*M_PI/nsamp0;
+            for (unsigned i = 0; i < nsamp0/2; i++)
+            {
+                cosSin[i].first = std::cos(i*alpha0);
+                cosSin[i].second = std::sin(i*alpha0);
+            }
+
             const unsigned nsampBits = std::log2(_input.size());
-            return getPow2Fft(_input, 0, nsamp0, 1, doIfft);
+            if (!doIfft)
+            {
+                _fft.resize(nsamp0);
+                getPow2Fft(_input, _fft, cosSin, 0, 0, nsamp0, 1, doIfft);
+            }
+            else
+            {
+                _ifft.resize(nsamp0);
+                getPow2Fft(_input, _ifft, cosSin, 0, 0, nsamp0, 1, doIfft);
+                for (unsigned i = 0; i < nsamp0; i++)
+                {
+                    _ifft[i].first /= nsamp0;
+                    _ifft[i].second /= nsamp0;
+                }
+            }
+            return;
         }
 
         unsigned nsamp1 = 2*nsamp0 - 1;
         unsigned nsampBits2 = std::ceil(std::log2(nsamp1));
         unsigned nsamp2 = std::pow(2, nsampBits2);
+
+        PairVector cosSin(nsamp2/2);
+        double alpha2 = -2.0*M_PI/nsamp2;
+        for (unsigned i = 0; i < nsamp2/2; i++)
+        {
+            cosSin[i].first = std::cos(i*alpha2);
+            cosSin[i].second = std::sin(i*alpha2);
+        }
 
         PairVector a(nsamp2);
         PairVector b(nsamp2);
@@ -170,33 +193,49 @@ private:
             }
         }
 
-        a = getPow2Fft(a, 0, nsamp2, 1, false);
-        b = getPow2Fft(b, 0, nsamp2, 1, false);
+        PairVector aout(nsamp2);
+        getPow2Fft(a, aout, cosSin, 0, 0, nsamp2, 1, false);
+        a.clear();
+        PairVector bout(nsamp2);
+        getPow2Fft(b, bout, cosSin, 0, 0, nsamp2, 1, false);
+        b.clear();
 
         PairVector c(nsamp2);
         for (unsigned i = 0; i < nsamp2; i++)
         {
-            c[i].first = a[i].first * b[i].first - a[i].second * b[i].second;
-            c[i].second = a[i].first * b[i].second + a[i].second * b[i].first;
+            c[i].first = aout[i].first * bout[i].first - aout[i].second * bout[i].second;
+            c[i].second = aout[i].first * bout[i].second + aout[i].second * bout[i].first;
         }
-        a.clear();
-        b.clear();
+        aout.clear();
+        bout.clear();
 
-        c = getPow2Fft(c, 0, nsamp2, 1, true);
+        PairVector cout(nsamp2);
+        getPow2Fft(c, cout, cosSin, 0, 0, nsamp2, 1, true);
+        c.clear();
 
         PairVector pvec(nsamp0);
         for (unsigned i = 0; i < nsamp0; i++)
         {
-            pvec[i].first = c[i].first * chirp[i].first - c[i].second * chirp[i].second;
-            pvec[i].second = c[i].first * chirp[i].second + c[i].second * chirp[i].first;
-            if (doIfft)
-            {
-                pvec[i].first /= _input.size();
-                pvec[i].second /= _input.size();
-            }
+            pvec[i].first = cout[i].first * chirp[i].first - cout[i].second * chirp[i].second;
+            pvec[i].second = cout[i].first * chirp[i].second + cout[i].second * chirp[i].first;
+            
+            pvec[i].first /= nsamp2;
+            pvec[i].second /= nsamp2;
         }
 
-        return pvec;
+        if (!doIfft)
+        {
+            std::swap(_fft, pvec);
+        }
+        else
+        {
+            std::swap(_ifft, pvec);
+            for (unsigned i = 0; i < nsamp0; i++)
+            {
+                _ifft[i].first /= nsamp0;
+                _ifft[i].second /= nsamp0;
+            }
+        }
     }
 
 public:
@@ -222,7 +261,7 @@ public:
     {
         if (_fft.size() == 0)
         {
-            _fft = getSelectFft(false);
+            getSelectFft(false);
         }
 
         return _fft;
@@ -232,7 +271,7 @@ public:
     {
         if (_fft.size() == 0)
         {
-            _fft = getSelectFft(false);
+            getSelectFft(false);
         }
 
         if (_fftComplexVector.size() == 0)
@@ -247,7 +286,7 @@ public:
     {
         if (_ifft.size() == 0)
         {
-            _ifft = getSelectFft(true);
+            getSelectFft(true);
         }
 
         return _ifft;
@@ -257,7 +296,7 @@ public:
     {
         if (_ifft.size() == 0)
         {
-            _ifft = getSelectFft(true);
+            getSelectFft(true);
         }
 
         if (_ifftComplexVector.size() == 0)
