@@ -115,6 +115,7 @@ private:
         unsigned nsamp0 = _input.size();
         double nsampBits0 = std::log2(nsamp0);
         double di;
+        // Fallback for sample count: power of 2
         if (modf(nsampBits0, &di) == 0.0)
         {
             PairVector cosSin(nsamp0/2);
